@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terminal Macro — En Vivo</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#10161f; --line:#1f2a38;
+    --ink:#e8edf4; --dim:#7c8a9c;
+    --cpi:#ff6b4a; --fed:#4a9eff; --bond:#2ee6c4; --gdp:#4ade80; --spx:#f5c542;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); min-height:100vh;
+    font-family:'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .wrap{max-width:1000px; margin:0 auto; padding:28px 20px 48px;}
+  h1{font-size:1.3rem; margin:0 0 4px; font-weight:600;}
+  .sub{color:var(--dim); font-size:.85rem; margin-bottom:22px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px 18px;}
+  .card .label{color:var(--dim); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
+  .card .val{font-size:1.7rem; font-weight:700; line-height:1;}
+  .card .meta{color:var(--dim); font-size:.72rem; margin-top:8px;}
+  .cpi{color:var(--cpi);} .fed{color:var(--fed);} .bond{color:var(--bond);} .gdp{color:var(--gdp);} .spx{color:var(--spx);}
+  .status{color:var(--dim); font-size:.78rem; margin-top:22px;}
+  button{
+    background:var(--panel); border:1px solid var(--line); color:var(--ink);
+    padding:7px 14px; border-radius:6px; font-family:inherit; font-size:.78rem; cursor:pointer; margin-top:22px;
+  }
+  button:hover{border-color:var(--bond);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Terminal Macro EE.UU. — En Vivo</h1>
+  <div class="sub">Datos reales vía FRED (Federal Reserve Bank of St. Louis)</div>
+
+  <div class="grid" id="grid">
+    <div class="card"><div class="label">Cargando…</div></div>
+  </div>
+
+  <div class="status" id="status">Consultando FRED…</div>
+  <button onclick="load()">↻ Actualizar ahora</button>
+</div>
+
+<script>
+  const colorClass = { cpi_yoy: "cpi", fed_funds: "fed", ust2y: "bond", gdp_growth: "gdp", sp500: "spx" };
+  const suffix = { cpi_yoy: "%", fed_funds: "%", ust2y: "%", gdp_growth: "%", sp500: "" };
+
+  async function load() {
+    const status = document.getElementById("status");
+    const grid = document.getElementById("grid");
+    status.textContent = "Consultando FRED…";
+    try {
+      const res = await fetch("/.netlify/functions/macro");
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      grid.innerHTML = "";
+      for (const [key, item] of Object.entries(json.data)) {
+        if (!item) continue;
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="label">${item.label}</div>
+          <div class="val ${colorClass[key] || ""}">${item.value}${suffix[key] || ""}</div>
+          <div class="meta">Dato del ${item.date}</div>`;
+        grid.appendChild(card);
+      }
+      status.textContent = "Actualizado: " + new Date(json.updated_at).toLocaleString("es");
+    } catch (err) {
+      status.textContent = "Error: " + err.message;
+    }
+  }
+
+  load();
+  // refresca solo cuando la persona vuelve a la pestaña, no en bucle constante
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
